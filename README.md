@@ -1,4 +1,18 @@
-# ConstitutionMAS-EC: Constitutional Multi-Agent Systems with Emergent Communication
+# ConstitutionMAS-EC: Peer Constitutional Critique for Aligned Emergent Communication in Decentralized Multi-Agent LLMs
+
+**Pluralistic Alignment Workshop @ ICML 2026** · Seoul, South Korea
+
+**Authors:** Rishi Ashish Shah¹ · Priyanshu Banik¹ · Rahul Katarya¹ · Himanshu Nandanwar²
+
+¹ Department of Computer Science and Engineering, Delhi Technological University, Delhi, India  
+² Department of Computer Science and Engineering, Motilal Nehru National Institute of Technology Allahabad, Prayagraj, India
+
+Correspondence: [Rishi Ashish Shah](mailto:rishishah_cs24a06_001@dtu.ac.in)
+
+## Paper
+
+- [Final submission PDF](ConstitutionMAS_EC_final_submission.pdf)
+- [Compiled paper](Docs/constitutionmas_ec.pdf) · [LaTeX source](Docs/constitutionmas_ec.tex) · [Bibliography](Docs/constitutionmas_ec.bib)
 
 ## Overview
 **ConstitutionMAS-EC** is a research prototype for **multi-agent LLM teams** that (1) coordinate via **emergent communication** and (2) maintain **alignment** via **peer constitutional critique**. The core goal is to enable **specialization without centralized oversight**: agents critique each other against a shared written constitution, and the system evolves toward communication that is simultaneously **useful, safe, and efficient**.
@@ -229,6 +243,8 @@ Baselines to compare:
 - `demos/`: neutral trap-case demos
 - `src/`: framework implementation (agents, environment, logging, metrics, Gemini wrapper)
 - `configs/`: constitution + agent role specifications
+- `Docs/`: ICML workshop paper (LaTeX source, PDF, figures)
+- `ConstitutionMAS_EC_final_submission.pdf`: camera-ready submission PDF
 - `logs/`: run logs and run artifacts (ignored by git)
 - `hotpot/`: optional dataset files (recommend downloading locally; can be ignored by git)
 - `experiments/hotpotqa/`: HotpotQA runner + evaluator scripts
@@ -242,3 +258,18 @@ Baselines to compare:
 ## Security
 Do **not** commit API keys. Keep `.env` local and ignored by git.
 
+## Citation
+
+If you use this code or build on ConstitutionMAS-EC, please cite our workshop paper:
+
+```bibtex
+@inproceedings{shah2026constitutionmas,
+  title     = {{ConstitutionMAS-EC}: Peer Constitutional Critique for Aligned Emergent Communication in Decentralized Multi-Agent {LLM}s},
+  author    = {Shah, Rishi Ashish and Banik, Priyanshu and Katarya, Rahul and Nandanwar, Himanshu},
+  booktitle = {Pluralistic Alignment Workshop at {ICML}},
+  year      = {2026},
+  address   = {Seoul, South Korea}
+}
+```
+
+**Workshop:** [Pluralistic Alignment Workshop @ ICML 2026](https://icml.cc/), Seoul, South Korea.
