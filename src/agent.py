@@ -48,7 +48,7 @@ class ConstitutionalAgent:
         for msg in conversation_history:
             context += f"{msg['sender']}: {msg['content']}\n"
             
-        task_prompt = f"{context}\n\n{self.name}, it is your turn. Generate your response. Be concise and helpful."
+        task_prompt = f"{context}\n\n{self.name}, it is your turn. Generate your response. Follow the task's required format exactly. Be concise."
         
         response = self.model.generate(task_prompt, system_instruction=system_prompt)
         return response

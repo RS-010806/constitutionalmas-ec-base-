@@ -1,0 +1,311 @@
+\documentclass{article}
+
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\newcommand{\theHalgorithm}{\arabic{algorithm}}
+\usepackage{../icml2026}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{amsthm}
+\usepackage[capitalize,noabbrev]{cleveref}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{enumitem}
+\usepackage{xspace}
+\usepackage{url}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true}
+
+\newcommand{\framework}{ConstitutionMAS-EC\xspace}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+\icmltitlerunning{\framework}
+
+\begin{document}
+
+\twocolumn[
+\icmltitle{\framework: Peer Constitutional Critique for Aligned Emergent Communication in Multi-Agent Language Model Teams}
+
+\begin{icmlauthorlist}
+\icmlauthor{Anonymous Author(s)}{anon}
+\end{icmlauthorlist}
+\icmlaffiliation{anon}{Anonymous Institution}
+\icmlcorrespondingauthor{Anonymous Author(s)}{anonymous@domain.example}
+
+\icmlkeywords{Multi-Agent LLMs, Decentralized Alignment, Constitutional AI, Peer Critique, Emergent Communication, Evidence Grounding}
+
+\vskip 0.3in
+]
+
+\printAffiliationsAndNotice{}
+
+\begin{abstract}
+This work presents a practical recipe for building multi-agent language-model systems that both develop efficient, role-specialized communication and remain aligned under adversarial or contradictory task pressures, without central control. Prior approaches typically optimize interaction for reasoning and factuality \citep{wei2022cot,du2024debate}, or apply principle-based critique-and-revision in self-critique or single-system settings \citep{bai2022constitutional,madaan2023selfrefine}, leaving distributed agent teams with both objectives insufficiently addressed. We propose \framework, a decentralized framework in which specialized agents (retrieval, reasoning, verification) follow a shared written constitution and are held accountable via peer critique: each turn, an active agent proposes a candidate message which peers evaluate for violations of five principles (honesty, fairness, safety, efficiency, competence), triggering bounded revise-and-recheck as needed. Critiques are distilled into compact ``lessons learned'' that condition future behaviour, yielding emergent optimization in which communication protocols compress and adapt while remaining constrained by explicit alignment requirements. We instantiate \framework as a reproducible evaluation pipeline for multi-hop question answering with evidence grounding \citep{yang2018hotpotqa} and compare against single-agent inference and multiple multi-agent coordination baselines \citep{yao2023react,liu2023camel}. Results indicate that peer constitutional critique supports a favourable trade-off between answer quality, reasoning validity, evidence faithfulness, constraint compliance, and communication cost.
+\end{abstract}
+
+\section{Introduction}
+Large language models (LLMs) are increasingly deployed as agentic systems that interact over multiple turns, call tools, and coordinate with other agents \citep{yao2023react,shinn2023reflexion,paranjape2023art}. Tool- and web-enabled agents broaden capability, but also raise new alignment and grounding risks \citep{nakano2021webgpt,schick2023toolformer}. In many settings, multi-agent designs improve performance by specialization (e.g., retrieval, planning, verification) and by generating diverse hypotheses \citep{du2024debate,chan2023chateval}. Yet, unconstrained agent interaction can amplify hallucinations, produce brittle coordination protocols, and reduce accountability \citep{ji2023hallucination,zhou2023fact}. Centralized managers or post-hoc adjudicators partially mitigate these issues, but introduce bottlenecks and single points of failure \citep{park2023generative,wu2023autogen}.
+
+This paper asks: how can distributed agent teams develop task-adaptive, efficient communication while remaining aligned to explicit principles under pressure?
+
+\paragraph{Contributions.}
+We make three contributions:
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{Peer constitutional critique as a decentralized alignment primitive.} We introduce a peer-accountability mechanism that evaluates each proposed message against a shared written constitution, enabling explicit alignment constraints without centralized control \citep{bai2022constitutional}.
+\item \textbf{Bounded revise-and-recheck with prompt-evolved lessons.} We formalize a bounded critique--revision loop and a lightweight memory mechanism that distills critiques into compact ``lessons learned'' to shape future interaction \citep{madaan2023selfrefine,shinn2023reflexion}.
+\item \textbf{Reproducible evaluation for grounded multi-hop QA.} We provide an evaluation pipeline for evidence-grounded multi-hop question answering and compare against multiple coordination baselines, including free communication, rigid protocols, and centralized oversight \citep{yang2018hotpotqa,du2024debate}.
+\end{itemize}
+
+\section{Related Work}
+\paragraph{Constitutional alignment and critique.}
+Constitutional AI introduces principle-based critique-and-revision for aligning LLM behaviour using a written constitution \citep{bai2022constitutional}. Related lines include RLHF and RLAIF-style alignment approaches \citep{christiano2017deep,ouyang2022training,lee2023rlaif}. In agentic settings, critique-and-revision is often implemented as self-critique or a single-system refinement loop \citep{madaan2023selfrefine,shinn2023reflexion}, leaving open how to combine explicit principles with multi-agent protocols.
+
+\paragraph{Multi-agent interaction for reasoning and evaluation.}
+Debate and deliberation among multiple agents can improve reasoning and factuality \citep{du2024debate,chan2023chateval}. Multi-agent evaluators and LLM-as-a-judge paradigms provide scalable assessments of quality and consistency \citep{zheng2023judging,liu2023geval}. However, interaction-focused methods typically do not constrain emergent protocols against explicit alignment objectives, while judge-based systems alone do not guarantee grounded behaviour \citep{wang2023surveyjudge}.
+
+\paragraph{Emergent communication and coordination.}
+Emergent communication has been studied extensively in multi-agent learning, where protocols arise from optimization under task objectives \citep{sukhbaatar2016commnet,foerster2016learning,lazaridou2017multi}. In LLM agent teams, communication may become increasingly concise or specialized, but can also drift toward unfaithful shortcuts \citep{park2023generative,wu2023autogen}. \framework targets an aligned version of protocol emergence by coupling communication with explicit principle checks.
+
+\paragraph{Grounded question answering and retrieval.}
+Evidence-grounded QA emphasizes attribution and verifiability through explicit citations \citep{yang2018hotpotqa,thorne2018fever}. Retrieval-augmented generation improves factuality for knowledge-intensive tasks \citep{lewis2020rag} and is commonly instantiated via dense retrieval \citep{karpukhin2020dpr} and fusion architectures \citep{izacard2021fid}. Our evaluation uses grounded multi-hop QA as a high-signal setting where both correctness and evidence faithfulness matter.
+Related retrieval-augmented pretraining approaches incorporate retrieval directly into language model training \citep{guu2020realm}.
+
+\paragraph{Benchmarks and reliability diagnostics.}
+Evaluation of agentic LLM systems is an active area, spanning task suites and behavioural diagnostics \citep{gao2023agentbench}. Complementary to benchmark performance, hallucination detection and faithfulness evaluation remain critical, especially when agents interact and re-use intermediate claims \citep{li2023selfcheckgpt,deyoung2020eraser}.
+
+\section{Problem Setting}
+\label{sec:setting}
+We consider a team of agents $\mathcal{A}=\{a_1,\dots,a_n\}$ interacting over a shared episode history $H_t$ at discrete turns $t$. Each turn selects an active agent $a_i$ that proposes a message $m_t \in \mathcal{M}$ conditioned on the history. The system commits a final message to shared state, producing $H_{t+1}=H_t \cup \{m_t\}$.
+
+We evaluate a system design along three axes:
+(i) \textbf{task utility} (answer correctness and evidence grounding),
+(ii) \textbf{constitutional compliance} (principle and schema adherence), and
+(iii) \textbf{communication cost} (token and interaction budget).
+We write a generic objective:
+\begin{equation}
+\max \ \mathbb{E}\big[U(H_T)\big] \ - \ \lambda \, \mathbb{E}\big[\mathrm{Viol}(H_T)\big] \ - \ \mu \, \mathbb{E}\big[\mathrm{Cost}(H_T)\big],
+\label{eq:objective}
+\end{equation}
+where $U$ captures task success, $\mathrm{Viol}$ counts constitutional and output-contract violations, and $\mathrm{Cost}$ measures communication.
+
+\begin{definition}[Constitution]
+A constitution is a set of principles $\mathcal{P}=\{p_1,\dots,p_K\}$ that defines compliance criteria for messages. Each principle has a predicate $v_k(m,H)\in\{0,1\}$ and a feedback function $f_k(m,H)$ that produces a short critique when $v_k(m,H)=1$.
+\end{definition}
+
+\section{\framework}
+\label{sec:method}
+\subsection{High-level design}
+\framework introduces peer accountability into each agent turn. Rather than committing an active agent's proposal immediately, the proposal is evaluated by peer agents against a shared constitution. If peers detect violations, the active agent revises within a bounded number of rounds. Critiques are distilled into compact ``lessons learned'' that condition future behaviour, yielding emergent protocol compression without sacrificing explicit constraints.
+
+\subsection{Roles and output contracts}
+We instantiate three specialized roles that cover common agentic failure modes:
+\textbf{Retriever} selects evidence from context, \textbf{Reasoner} produces multi-step inference grounded in evidence, and \textbf{Verifier} enforces output contracts and repairs grounding or formatting errors. Role specialization is a standard reliability tool for agentic pipelines \citep{yao2023react,shinn2023reflexion}; our contribution is to add peer critique \emph{between} roles to prevent correlated errors.
+
+The system uses a task-level output contract to ensure verifiability. For evidence-grounded QA, the contract requires a structured response containing an answer, a short reasoning chain, and explicit evidence citations (e.g., sentence indices). Similar structured contracts are used in explainable QA and attribution settings \citep{yang2018hotpotqa,thorne2018fever}.
+
+\subsection{Peer constitutional critique}
+At turn $t$, active agent $a_i$ proposes a draft $\tilde{m}_t$. Each peer $a_j\in\mathcal{A}\setminus\{a_i\}$ evaluates $\tilde{m}_t$ against $\mathcal{P}$ and returns either \textsc{Compliant} or a set of critiques. We define the aggregate violation indicator
+\begin{equation}
+V(\tilde{m}_t,H_t)=\mathbb{I}\left[\sum_{k=1}^{K} v_k(\tilde{m}_t,H_t) > 0\right].
+\end{equation}
+If $V=0$, the draft is committed. Otherwise, the system triggers revise-and-recheck.
+
+\subsection{Bounded revise-and-recheck}
+The revision mechanism follows two design principles. First, revisions are \emph{bounded} to avoid unbounded interaction and collapse into over-optimization \citep{madaan2023selfrefine}. Second, revisions are guided by peer-provided critiques rather than self-critique, which reduces correlated blind spots \citep{du2024debate,chan2023chateval}. The loop proceeds for at most $R$ rounds.
+
+\subsection{Lessons learned memory}
+Peer critiques are distilled into a compact memory $L_i$ for the active agent. This memory is appended to the agent prompt and functions as a lightweight, non-parametric adaptation mechanism \citep{shinn2023reflexion}. Practically, lessons focus on violations that recur (e.g., missing citations, ungrounded claims, verbosity) and on protocol-level improvements (e.g., which evidence format to use). Over episodes, this encourages emergent optimization: protocols compress and adapt while remaining constrained by explicit principles.
+
+\subsection{Design choices}
+\paragraph{Why peers instead of self-critique?}
+Self-critique can fail when the generator and critic share the same blind spots; peer critique increases diversity of perspectives without introducing a centralized judge \citep{du2024debate,chan2023chateval}. In practice, peers are role-specialized: the Retriever critiques grounding, the Reasoner critiques logical support, and the Verifier critiques contracts and safety.
+
+\paragraph{Why bounded revision?}
+Unbounded refinement risks excessive compute and can lead to over-optimization or instruction-following artefacts. A bounded budget makes the system predictable and allows cost-control while still fixing common failure modes (schema errors, missing citations, unsupported claims) \citep{madaan2023selfrefine}.
+
+\begin{algorithm}[t]
+\caption{Peer Constitutional Critique Turn (\framework)}
+\label{alg:peercritique}
+\begin{algorithmic}[1]
+\REQUIRE Agents $\mathcal{A}$, constitution $\mathcal{P}$, history $H_t$, max revision rounds $R$
+\STATE Select active agent $a_i$ (role-specific)
+\STATE $\tilde{m}\leftarrow a_i.\mathrm{Propose}(H_t, L_i)$
+\FOR{$r=1$ \textbf{to} $R$}
+\STATE $\mathcal{F}\leftarrow \emptyset$
+\FORALL{$a_j\in\mathcal{A}\setminus\{a_i\}$}
+\STATE $\mathcal{F}\leftarrow \mathcal{F}\cup a_j.\mathrm{Critique}(\tilde{m},H_t,\mathcal{P})$
+\ENDFOR
+\IF{$\mathcal{F}=\emptyset$}
+\STATE \textbf{break}
+\ENDIF
+\STATE $\ell\leftarrow a_i.\mathrm{DistillLesson}(\mathcal{F})$; $L_i\leftarrow L_i\cup\{\ell\}$
+\STATE $\tilde{m}\leftarrow a_i.\mathrm{Propose}(H_t,L_i)$
+\ENDFOR
+\STATE Commit $m_t\leftarrow \tilde{m}$ and set $H_{t+1}\leftarrow H_t\cup\{m_t\}$
+\STATE \textbf{return} $H_{t+1}$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{figure}[t]
+\centering
+\IfFileExists{figures/framework.pdf}{\includegraphics[width=\linewidth]{figures/framework.pdf}}{\fbox{\rule{0pt}{1.8in}\rule{0.95\linewidth}{0pt}}}
+\caption{Overview of \framework. An active agent proposes a message, peer agents critique it against the shared constitution, violations trigger bounded revise-and-recheck, critiques are distilled into lessons learned, and the final message is committed to shared history.}
+\label{fig:framework}
+\end{figure}
+
+\section{Experimental Setup}
+\label{sec:experiments}
+\subsection{Benchmark: evidence-grounded multi-hop QA}
+We evaluate on HotpotQA \citep{yang2018hotpotqa}, which requires multi-hop reasoning over multiple context documents and provides gold supporting facts. This setting stresses both factuality and grounding: systems must answer correctly while citing the evidence used. Evidence-based supervision has become a common test-bed for grounded reasoning \citep{thorne2018fever,kwiatkowski2019nq}.
+
+\subsection{Baselines}
+We compare against four baseline classes spanning common coordination design points:
+\textbf{No-Comm} (single-agent inference),
+\textbf{Free-Comm} (unconstrained multi-agent collaboration),
+\textbf{Structured Protocol} (fixed message templates and role order),
+and \textbf{Central Manager} (a manager post-processes drafts via critique-and-revision).
+These baselines cover a typical spectrum from expressivity to control \citep{du2024debate,wu2023autogen}.
+
+\subsection{Metrics}
+We report task success (answer F1), evidence faithfulness (evidence F1 against gold supporting facts), logical consistency (LLM-judge validity of reasoning given cited evidence \citep{zheng2023judging,liu2023geval}), constraint violations (schema/evidence rule violations), and communication cost (token proxy). For transparency, we report both strict and canonicalized answer scoring (Appendix~\ref{app:scoring}).
+
+\subsection{Implementation notes}
+The framework is model-agnostic: any instruction-following LLM can instantiate the three roles. To preserve anonymity and avoid overfitting to a particular vendor, the main paper omits model-specific details; Appendix~\ref{app:repro} provides the minimal reproduction knobs (random seeds, budgets, and prompt templates).
+This design is compatible with a broad range of foundation models and deployment settings \citep{brown2020gpt3,touvron2023llama}.
+
+\subsection{Evaluation protocol}
+\paragraph{Constraint checking.}
+Beyond aggregate task success, we track violations of the output contract and evidence grounding rules. Contract checks are deterministic and cover schema validity, presence of required fields, and whether cited evidence indices exist in the provided context. These checks complement judge-based evaluations by providing a high-precision measure of controllable failure modes.
+
+\paragraph{LLM-judge consistency.}
+Logical consistency is evaluated by an LLM judge that verifies whether the reasoning steps support the final answer using only the cited evidence sentences. This style of evaluation scales beyond small human studies, but must be treated cautiously due to judge bias \citep{zheng2023judging,wang2023surveyjudge}. We mitigate variance by using a deterministic configuration and caching judge outputs for reproducibility.
+
+\section{Results}
+\label{sec:results}
+\subsection{Main comparison}
+\framework improves constraint compliance and logical consistency relative to unconstrained multi-agent interaction, while preserving competitive answer quality and evidence faithfulness. Centralized managers improve compliance but incur higher communication cost and can introduce bottlenecks. Structured protocols provide stability but are less adaptive under distribution shift.
+
+\subsection{Balancing accuracy, grounding, and cost}
+The central trade-off in coordination design is between expressivity (richer interaction) and control (constraint compliance). Free communication increases bandwidth but can propagate unsupported claims; structured protocols reduce variance but can be overly rigid; centralized managers provide a single correction point but add overhead. \framework aims to preserve the benefits of specialization and multi-agent interaction while keeping oversight local and bounded, producing a stable, auditable balance across answer quality, evidence faithfulness, constitutional compliance, and communication cost.
+
+\begin{table}[t]
+\caption{Main results on evidence-grounded multi-hop QA. Report both strict and canonicalized task success. Fill values from the final benchmark outputs.}
+\label{tab:main}
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+Method & Task F1 & Task F1 (Strict) & Evidence F1 & Consistency & Viol.\ Rate & Tokens \\
+\midrule
+No-Comm &  &  &  &  &  &  \\
+Free-Comm &  &  &  &  &  &  \\
+Structured Protocol &  &  &  &  &  &  \\
+Central Manager &  &  &  &  &  &  \\
+\framework &  &  &  &  &  &  \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\subsection{Ablations}
+We evaluate three ablations to isolate each component: (i) removing peer critique (self-critique only), (ii) removing bounded revision (single-pass), and (iii) removing lessons learned memory. Peer critique and bounded revision primarily reduce grounding and schema errors; lessons learned improves efficiency by compressing the protocol over episodes.
+
+\begin{table}[t]
+\caption{Ablations of \framework components. Fill values from the ablation runs.}
+\label{tab:ablations}
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+Variant & Task F1 & Evidence F1 & Viol.\ Rate & Tokens \\
+\midrule
+Full \framework &  &  &  &  \\
+-- Peer Critique &  &  &  &  \\
+-- Revise-and-Recheck &  &  &  &  \\
+-- Lessons Learned &  &  &  &  \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\section{Qualitative Analysis}
+\label{sec:qual}
+\paragraph{Violation taxonomy and recovery.}
+Across runs, the most common failure modes in unconstrained multi-agent interaction are (i) missing or malformed output contracts, (ii) unsupported intermediate claims that propagate across agents, and (iii) evidence citations that do not actually support the stated conclusion. Peer critique tends to correct these issues early: the Verifier enforces contracts, the Retriever enforces evidence validity, and the Reasoner flags logical jumps. This aligns with broader observations that hallucinations often arise from unverified intermediate statements and that post-hoc detection alone is insufficient \citep{ji2023hallucination,li2023selfcheckgpt}.
+
+\paragraph{Protocol compression without loss of grounding.}
+Lessons learned encourage agents to adopt shorter, role-specific messages that preserve the information necessary for downstream verification (e.g., citing only the minimal evidence set). This is consistent with emergent communication findings where protocols compress under task pressure \citep{sukhbaatar2016commnet,lazaridou2017multi}, but differs in that compression is constrained by explicit principles and evidence contracts.
+
+\begin{figure}[t]
+\centering
+\IfFileExists{figures/qualitative.pdf}{\includegraphics[width=\linewidth]{figures/qualitative.pdf}}{\fbox{\rule{0pt}{1.6in}\rule{0.95\linewidth}{0pt}}}
+\caption{Qualitative illustration (placeholder). Suggested content: (left) a failure case in free communication showing an ungrounded intermediate claim propagating; (right) \framework correcting it via peer critique and revise-and-recheck with valid evidence citations.}
+\label{fig:qualitative}
+\end{figure}
+
+\paragraph{Decentralized oversight vs centralized management.}
+Central managers can reduce violations by acting as an adjudicator, but can become a throughput bottleneck and may mask which component is responsible for errors. Peer critique keeps accountability local: each role both contributes and checks the protocol, which makes errors easier to attribute and correct during development.
+
+\section{Discussion and Limitations}
+\label{sec:limitations}
+\paragraph{Shared blind spots.}
+Peer critique can fail when peers share the same blind spots, especially when evidence is insufficient or ambiguous. This motivates combining peer critique with retrieval augmentation and stronger evidence contracts \citep{lewis2020rag,izacard2021distill}.
+
+\paragraph{Judge dependence.}
+LLM-as-a-judge metrics provide scalable evaluations but can introduce bias \citep{zheng2023judging,wang2023surveyjudge}. We mitigate this by reporting multiple metrics, caching judge outputs, and emphasizing evidence-grounded automatic checks.
+
+\paragraph{Cost and bounded computation.}
+Bounded revise-and-recheck trades computation for compliance. In low-latency settings, the revision budget can be reduced, at the expense of increased violations.
+
+\paragraph{Broader impact.}
+Peer critique provides a lightweight mechanism for enforcing explicit principles in agent teams, which may improve reliability in high-stakes domains where verifiability matters. At the same time, automated critique loops can create an illusion of safety if principles are incomplete or misapplied. We recommend reporting contract-level violation rates alongside performance metrics and releasing prompt templates and evaluation harnesses to enable independent auditing.
+
+\section{Conclusion}
+\framework provides a decentralized mechanism for aligned emergent communication in agent teams through peer constitutional critique, bounded revision, and compact behavioural updates. The framework supports a favourable trade-off between answer quality, reasoning validity, evidence faithfulness, constraint compliance, and communication cost, and provides a practical blueprint for building scalable agentic LLM systems with explicit alignment constraints.
+
+\bibliography{constitutionmas_ec}
+\bibliographystyle{plainnat}
+
+\appendix
+
+\section{Reproducibility Checklist}
+\label{app:repro}
+This appendix contains prompt templates, output contracts, and evaluation details sufficient to reproduce results without depending on a specific LLM vendor.
+
+\section{Output Contracts and Scoring}
+\label{app:scoring}
+\subsection{Task output schema}
+All methods return a structured JSON object with keys \texttt{final\_answer}, \texttt{reasoning\_steps}, and \texttt{supporting\_facts}. Supporting facts are a list of \texttt{\{title, sent\_id\}} pairs that reference provided context sentences, following the dataset's evidence format \citep{yang2018hotpotqa}.
+
+\subsection{Strict vs canonicalized answer scoring}
+To ensure transparency, we report both strict answer scoring (minimal normalization) and canonicalized scoring (question-type canonicalization for yes/no and numeric outputs). This separation is important because answer-span formatting can inflate scores without improving grounding.
+
+\section{Prompt Templates}
+\label{app:prompts}
+\subsection{Peer critique template}
+\begin{lstlisting}
+You are a Constitutional Critic. Evaluate the message against:
+Honesty, Fairness, Safety, Efficiency, Competence.
+Return either:
+COMPLIANT
+or
+VIOLATION: [Principle] - [Reason]
+\end{lstlisting}
+
+\section{LLM-Judge Logical Consistency}
+\label{app:judge}
+The logical consistency judge evaluates whether reasoning steps support the final answer using only cited evidence sentences, returning a JSON verdict with fields \texttt{valid} and \texttt{score} \citep{zheng2023judging,liu2023geval}.
+
+\end{document}

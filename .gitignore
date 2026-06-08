@@ -18,6 +18,9 @@ logs/
 *.log
 output.log
 
+# Experimental runs (generated)
+runs/
+
 # Local datasets (download locally; keep repo lightweight)
 hotpot/
 
@@ -29,3 +32,20 @@ hotpot/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Archives (duplicate of tracked source)
+*.zip
+
+# LaTeX build artifacts (regenerate from .tex)
+*.aux
+*.blg
+*.out
+*.bbl
+*.synctex.gz
+
+# Internal planning notes (not part of release)
+Idea solidification.docx
+Implementation Plan.docx
+Literature Review.docx
+Docs/Abstract Draft.docx
+Docs/example_paper.*

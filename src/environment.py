@@ -5,7 +5,7 @@ import termcolor
 
 
 class Environment:
-    def __init__(self, gemini_model: GeminiModel, logger: RunLogger | None = None):
+    def __init__(self, gemini_model: GeminiModel, logger: RunLogger | None = None, max_revision_rounds: int = 2):
         self.model = gemini_model
         self.agents = []
         self.history = []
@@ -15,6 +15,7 @@ class Environment:
             "revisions_triggered": 0,
         }
         self.logger = logger
+        self.max_revision_rounds = max_revision_rounds
 
     def _log(self, text: str):
         if self.logger:
@@ -35,47 +36,52 @@ class Environment:
         print(termcolor.colored(header, "cyan"))
         self._log(header)
 
-        # 1. Proposal Phase
-        proposed_message = active_agent.act(self.history)
-        proposed_line = f"Proposed: {proposed_message[:100]}..."
-        print(proposed_line)
-        self._log(proposed_line)
+        draft_message = active_agent.act(self.history)
+        final_message = draft_message
 
-        # 2. Critique Phase (Peer Accountability)
-        violations = []
-        critique_header = "--- Peer Critique in progress ---"
-        print(termcolor.colored(critique_header, "yellow"))
-        self._log(critique_header)
-        for peer in peers:
-            critique = peer.critique(proposed_message, active_agent.name)
-            if critique['violation']:
-                violation_text = f"{peer.name}: {critique['feedback']}"
-                violations.append(violation_text)
-                alert = f"Violation found by {peer.name}!"
-                print(termcolor.colored(alert, "red"))
-                self._log(alert)
+        for revision_round in range(self.max_revision_rounds + 1):
+            proposed_line = f"Proposed: {draft_message[:100]}..."
+            print(proposed_line)
+            self._log(proposed_line)
 
-        final_message = proposed_message
+            violations = []
+            critique_header = "--- Peer Critique in progress ---"
+            print(termcolor.colored(critique_header, "yellow"))
+            self._log(critique_header)
+            for peer in peers:
+                critique = peer.critique(draft_message, active_agent.name)
+                if critique["violation"]:
+                    violation_text = f"{peer.name}: {critique['feedback']}"
+                    violations.append(violation_text)
+                    alert = f"Violation found by {peer.name}!"
+                    print(termcolor.colored(alert, "red"))
+                    self._log(alert)
 
-        # 3. Dual-Loop Optimization
-        if violations:
+            if not violations:
+                final_message = draft_message
+                break
+
             self.metrics["violations_detected"] += len(violations)
-            self.metrics["revisions_triggered"] += 1
 
-            # Aggregate feedback
+            if revision_round >= self.max_revision_rounds:
+                final_message = draft_message
+                max_line = f"{active_agent.name} reached max revision rounds; committing last draft."
+                print(termcolor.colored(max_line, "yellow"))
+                self._log(max_line)
+                break
+
+            self.metrics["revisions_triggered"] += 1
             feedback_summary = " ".join(violations)
 
-            # Step 3a: Learn (Prompt Evolution)
             learn_line = f"{active_agent.name} is learning from feedback..."
             print(termcolor.colored(learn_line, "magenta"))
             self._log(learn_line)
             active_agent.learn(feedback_summary)
 
-            # Step 3b: Retry (RLAIF simulation)
             revising_line = f"{active_agent.name} is revising..."
             print(termcolor.colored(revising_line, "cyan"))
             self._log(revising_line)
-            final_message = active_agent.act(self.history)
+            draft_message = active_agent.act(self.history)
 
         # 4. Commit to History
         self.history.append({"sender": active_agent.name, "content": final_message})
